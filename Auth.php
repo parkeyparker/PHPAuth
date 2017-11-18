@@ -259,9 +259,18 @@ class Auth
         $query->execute(array(1, $getRequest['uid']));
 
         $this->deleteRequest($getRequest['id']);
+        
+        $sessiondata = $this->addSession($getRequest['uid'], false);
+        
+        if($sessiondata == false) {
+            $return['message'] = $this->lang["system_error"] . " #01";
+            return $return;
+        }
 
         $return['error'] = false;
         $return['message'] = $this->lang["account_activated"];
+        $return['hash'] = $sessiondata['hash'];
+        $return['expire'] = $sessiondata['expiretime'];
 
         return $return;
     }
