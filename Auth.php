@@ -1201,6 +1201,71 @@ class Auth
 
         return $return;
     }
+    
+    /**
+    * Changes a user's password (insecurely)
+    * @param int $uid
+    * @param string $newpass
+    * @param string $repeatnewpass
+    * @param string $captcha = NULL
+    * @return array $return
+    */
+   public function changePasswordInsecure($uid, $newpass, $repeatnewpass, $captcha = NULL)
+    {
+        $return['error'] = true;
+        $block_status = $this->isBlocked();
+
+        if ($block_status == "verify") {
+            if ($this->checkCaptcha($captcha) == false) {
+                $return['message'] = $this->lang["user_verify_failed"];
+                return $return;
+            }
+        }
+
+        if ($block_status == "block") {
+            $return['message'] = $this->lang["user_blocked"];
+
+            return $return;
+        }
+
+        $validatePassword = $this->validatePassword($newpass);
+
+        if ($validatePassword['error'] == 1) {
+            $return['message'] = $validatePassword['message'];
+
+            return $return;
+        } elseif ($newpass !== $repeatnewpass) {
+            $return['message'] = $this->lang["newpassword_nomatch"];
+
+            return $return;
+        }
+
+        $user = $this->getBaseUser($uid);
+
+        if (!$user) {
+            $this->addAttempt();
+            $return['message'] = $this->lang["system_error"] . " #13";
+
+            return $return;
+        }
+
+        if (!password_verify($currpass, $user['password'])) {
+            $this->addAttempt();
+            $return['message'] = $this->lang["password_incorrect"];
+
+            return $return;
+        }
+
+        $newpass = $this->getHash($newpass);
+
+        $query = $this->dbh->prepare("UPDATE {$this->config->table_users} SET password = ? WHERE id = ?");
+        $query->execute(array($newpass, $uid));
+
+        $return['error'] = false;
+        $return['message'] = $this->lang["password_changed"];
+
+        return $return;
+    }
 
     /**
     * Changes a user's email
@@ -1265,6 +1330,72 @@ class Auth
         if (!password_verify($password, $user['password'])) {
             $this->addAttempt();
             $return['message'] = $this->lang["password_incorrect"];
+
+            return $return;
+        }
+
+        if ($email == $user['email']) {
+            $this->addAttempt();
+            $return['message'] = $this->lang["newemail_match"];
+
+            return $return;
+        }
+
+        $query = $this->dbh->prepare("UPDATE {$this->config->table_users} SET email = ? WHERE id = ?");
+        $query->execute(array($email, $uid));
+
+        if ($query->rowCount() == 0) {
+            $return['message'] = $this->lang["system_error"] . " #15";
+
+            return $return;
+        }
+
+        $return['error'] = false;
+        $return['message'] = $this->lang["email_changed"];
+
+        return $return;
+    }
+    
+    /**
+    * Changes a user's email (insecurely)
+    * @param int $uid
+    * @param string $email
+    * @param string $captcha = NULL
+    * @return array $return
+    */
+
+    public function changeEmailInsecure($uid, $email, $captcha = NULL)
+    {
+        $return['error'] = true;
+        $block_status = $this->isBlocked();
+
+        if ($block_status == "verify") {
+            if ($this->checkCaptcha($captcha) == false) {
+                $return['message'] = $this->lang["user_verify_failed"];
+
+                return $return;
+            }
+        }
+
+        if ($block_status == "block") {
+            $return['message'] = $this->lang["user_blocked"];
+
+            return $return;
+        }
+
+        $validateEmail = $this->validateEmail($email);
+
+        if ($validateEmail['error'] == 1) {
+            $return['message'] = $validateEmail['message'];
+
+            return $return;
+        }
+
+        $user = $this->getBaseUser($uid);
+
+        if (!$user) {
+            $this->addAttempt();
+            $return['message'] = $this->lang["system_error"] . " #14";
 
             return $return;
         }
