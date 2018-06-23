@@ -1249,13 +1249,6 @@ class Auth
             return $return;
         }
 
-        if (!password_verify($currpass, $user['password'])) {
-            $this->addAttempt();
-            $return['message'] = $this->lang["password_incorrect"];
-
-            return $return;
-        }
-
         $newpass = $this->getHash($newpass);
 
         $query = $this->dbh->prepare("UPDATE {$this->config->table_users} SET password = ? WHERE id = ?");
